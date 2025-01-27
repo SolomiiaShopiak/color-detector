@@ -15,9 +15,10 @@ blue_upper = np.array([120, 255, 255], np.uint8)
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 
 
-def track_contours(contours, frame, bbox_color: tuple, text: str) -> None:
-    '''bound each contour with a box'''
+def track_contours(mask, frame, bbox_color: tuple, text: str) -> None:
+    '''find contours of the mask and bound each contour with a box'''
     
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     for contour in contours:
         if (cv2.contourArea(contour) > 700):
             x, y, w, h = cv2.boundingRect(contour)
@@ -25,35 +26,30 @@ def track_contours(contours, frame, bbox_color: tuple, text: str) -> None:
             cv2.putText(frame, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1.0, bbox_color, 2)
     
 
-def detect_color() -> None:
+def detect_color():
     webcam = cv2.VideoCapture(0)
 
     while True:
         _, frame = webcam.read()
-
+        
         #convert image from BGR to HSV color space
         hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
+        
         # defining masks for different colors,
         # then applying opening (erosion followed by dilation) to remove noise
         red_mask = cv2.inRange(hsv_frame, red_lower, red_upper)
-        red_mask = cv2.dilate(red_mask, kernel)
+        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
         
         green_mask = cv2.inRange(hsv_frame, green_lower, green_upper)
-        green_mask = cv2.dilate(green_mask, kernel)
+        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, kernel)
         
         blue_mask = cv2.inRange(hsv_frame, blue_lower, blue_upper)
-        blue_mask = cv2.dilate(blue_mask, kernel)
-
-        #retrieving contours of masks and bounding them with track_contours function
-        contours, _ = cv2.findContours(red_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        track_contours(contours, frame, (0, 0, 255), "Red")
-
-        contours, _ = cv2.findContours(green_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        track_contours(contours, frame, (0, 255, 0), "Green")
+        blue_mask = cv2.morphologyEx(blue_mask, cv2.MORPH_OPEN, kernel)
         
-        contours, _ = cv2.findContours(blue_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        track_contours(contours, frame, (255,0,0), "Blue")
+        #retrieving contours of masks and bounding them with track_contours function
+        track_contours(red_mask, frame, (0, 0, 255), "Red")
+        track_contours(green_mask, frame, (0, 255, 0), "Green")
+        track_contours(blue_mask, frame, (255, 0, 0), "Blue")
         
         cv2.imshow('Color Detection', frame)
         
